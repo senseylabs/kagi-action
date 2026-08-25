@@ -1,0 +1,61 @@
+name: 'Kagi Secrets'
+description: 'Fetch Kagi secrets into your workflow using its own OIDC id-token. No stored credential, no CLI download.'
+author: 'Sensey Labs'
+
+branding:
+  icon: 'key'
+  color: 'purple'
+
+inputs:
+  identity-public-id:
+    description: >-
+      The CI binding's routing id (identityPublicId), copied from the Kagi portal. Unguessable but
+      NOT a credential: it selects which binding is evaluated, and every grant is derived from the
+      verified claims in the id-token.
+    required: true
+  api-url:
+    description: >-
+      Kagi API root. Only change this for a self-hosted (ENTERPRISE) Kagi deployment.
+    required: false
+    default: 'https://api.kagi.pw'
+  audience:
+    description: >-
+      OIDC audience to request the id-token at. Must match the binding's expectedAudience exactly
+      when it pins one; leave unset otherwise. The verifier requires an exact, single-valued
+      audience, so this is never unconstrained.
+    required: false
+    default: 'api.kagi.pw'
+  export-env:
+    description: >-
+      Write every fetched secret into $GITHUB_ENV, so later steps in the same job see them as
+      environment variables.
+    required: false
+    default: 'true'
+  env-file-path:
+    description: >-
+      Path of a .env file to write, e.g. build/.env. The document is rendered and escaped by Kagi
+      itself, not by this action, and the file is written with mode 0600. Leave unset to skip.
+    required: false
+  request-timeout-seconds:
+    description: 'Per-request timeout for the token mint and the secret fetch.'
+    required: false
+    default: '30'
+  mask:
+    description: >-
+      DEPRECATED and ignored. Every fetched value is always masked; Kagi has no per-secret
+      sensitivity flag, so there is nothing that could safely be left unmasked. Setting it to false
+      logs a warning and changes nothing.
+    required: false
+    default: 'true'
+
+outputs:
+  secret-count:
+    description: 'Number of distinct secret keys fetched (never the values themselves).'
+  scope-count:
+    description: 'Number of (app, environment) scopes the binding granted.'
+  env-file:
+    description: 'Absolute path of the written .env file, or empty when env-file-path was unset.'
+
+runs:
+  using: 'node24'
+  main: 'src/main.js'

@@ -1,0 +1,14 @@
+{
+  "name": "kagi-action",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GitHub Action that fetches Kagi secrets using the workflow's own OIDC id-token",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "license": "MIT"
+}

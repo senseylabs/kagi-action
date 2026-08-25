@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The action has no dependencies, so there is nothing to install and nothing to bundle: what is
+  # in src/ is exactly what runs on a customer's runner. Node 20 is tested alongside 24 so a
+  # customer pinned to an older runner still gets a working action.
+  test:
+    name: unit tests (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '24']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - run: npm test
+
+  # Runs the real action on a real runner against a local stand-in for GitHub's token service and
+  # the Kagi API. This is the only place the runner's own INPUT_* wiring, the node24 runtime, and
+  # the real $GITHUB_ENV are exercised. It deliberately does NOT request id-token: write, so the
+  # only token-service variables in play are the ones pointed at the stand-in below.
+  smoke:
+    name: end-to-end smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the stand-in OIDC + Kagi server
+        run: |
+          node test/e2e-server.js &
+          for _ in $(seq 1 50); do
+            [ -f e2e-endpoints.env ] && break
+            sleep 0.1
+          done
+          cat e2e-endpoints.env >> "$GITHUB_ENV"
+
+      - name: Run the action
+        id: kagi
+        uses: ./
+        with:
+          identity-public-id: 3fa2c1e0-0000-4000-8000-000000000000
+          api-url: ${{ env.E2E_API_URL }}
+          env-file-path: build/.env
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.E2E_TOKEN_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: e2e-runner-bearer
+
+      - name: The secrets are in the environment and in the .env file
+        run: |
+          set -euo pipefail
+          test "$E2E_SECRET" = "$E2E_SECRET_VALUE"
+          test "$E2E_MULTILINE" = "$(printf 'first-line\nsecond-line')"
+          test "${{ steps.kagi.outputs.secret-count }}" = "2"
+          test "${{ steps.kagi.outputs.scope-count }}" = "1"
+          grep -q 'E2E_SECRET="' build/.env
+          test "$(stat -c '%a' build/.env)" = "600"
+
+      # The reserved routing id below makes the stand-in answer with the same opaque 401 the real
+      # endpoint uses. The step must fail; it must never continue the job without its secrets.
+      - name: A denied fetch fails the step
+        id: denied
+        continue-on-error: true
+        uses: ./
+        with:
+          identity-public-id: 00000000-0000-4000-8000-000000000000
+          api-url: ${{ env.E2E_API_URL }}
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.E2E_TOKEN_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: e2e-runner-bearer
+
+      - name: ...and the failure was loud, not silent
+        run: |
+          test "${{ steps.denied.outcome }}" = "failure"
+
+  # An action's metadata is only validated when a workflow tries to use it, which is far too late
+  # for a customer. Parsing it here fails the PR instead.
+  metadata:
+    name: action.yml is valid
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse action.yml and check the entry point exists
+        run: |
+          python3 - <<'PY'
+          import sys, pathlib
+          try:
+              import yaml
+          except ImportError:
+              sys.exit("pyyaml missing")
+          spec = yaml.safe_load(pathlib.Path("action.yml").read_text())
+          assert spec["runs"]["using"].startswith("node"), spec["runs"]["using"]
+          main = pathlib.Path(spec["runs"]["main"])
+          assert main.is_file(), f"{main} does not exist"
+          assert "identity-public-id" in spec["inputs"]
+          print("action.yml OK:", spec["runs"]["using"], spec["runs"]["main"])
+          PY

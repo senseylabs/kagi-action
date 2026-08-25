@@ -1,0 +1,15 @@
+# The action has no dependencies and no build step; neither of these should ever exist here.
+node_modules/
+dist/
+
+# Test artefacts
+e2e-endpoints.env
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store

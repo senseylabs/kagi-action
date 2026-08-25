@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # Gate: customers pin @v1, which is a MOVING tag. Moving it onto a broken commit breaks every
+  # pipeline that uses this action at once, so the tests run before anything is published.
+  test:
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm test
+
+  release:
+    name: publish and move the major tag
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Parse the tag
+        id: version
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          if [[ ! "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag '$TAG' is not vMAJOR.MINOR.PATCH[-prerelease]."
+            exit 1
+          fi
+          MAJOR="${BASH_REMATCH[1]}"
+          PRERELEASE="${BASH_REMATCH[4]:-}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "major=v$MAJOR" >> "$GITHUB_OUTPUT"
+          # A prerelease must never move the floating major tag: everyone pinned to @v1 would be
+          # upgraded to it silently.
+          if [ -n "$PRERELEASE" ]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify the published tree is a usable action
+        run: |
+          set -euo pipefail
+          # The tag is what customers fetch; if the entry point named by action.yml is not in the
+          # tree, every consumer fails at step start with an unhelpful runner error.
+          test -f action.yml
+          test -f "$(python3 -c "import yaml,pathlib;print(yaml.safe_load(pathlib.Path('action.yml').read_text())['runs']['main'])")"
+
+      - name: Move the floating major tag
+        if: steps.version.outputs.prerelease == 'false'
+        env:
+          MAJOR: ${{ steps.version.outputs.major }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # Annotated, and force-moved: v1 is documented as tracking the latest v1.x.y.
+          git tag -f -a "$MAJOR" -m "$MAJOR tracks the latest $MAJOR release (currently $TAG)"
+          git push --force origin "refs/tags/$MAJOR"
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          FLAGS=(--generate-notes --title "$TAG")
+          if [ "$PRERELEASE" = "true" ]; then
+            FLAGS+=(--prerelease)
+          fi
+          gh release create "$TAG" "${FLAGS[@]}"
