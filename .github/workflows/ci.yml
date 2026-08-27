@@ -14,15 +14,18 @@ concurrency:
 
 jobs:
   # The action has no dependencies, so there is nothing to install and nothing to bundle: what is
-  # in src/ is exactly what runs on a customer's runner. Node 20 is tested alongside 24 so a
-  # customer pinned to an older runner still gets a working action.
+  # in src/ is exactly what runs on a customer's runner. action.yml declares `using: node24`, so
+  # GitHub always executes this action on the Node 24 runtime no matter what else is installed on
+  # the runner. A Node 20 leg would test an environment this action can never run in — and it
+  # fails, because `node --test` did not gain glob expansion until Node 22 and the test script
+  # uses a `test/**/*.test.js` pattern.
   test:
     name: unit tests (node ${{ matrix.node }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node: ['20', '24']
+        node: ['24']
     steps:
       - uses: actions/checkout@v4
 
