@@ -27,7 +27,7 @@ const OK_BODY = {
 
 const args = (overrides = {}) => ({
   apiUrl: 'https://api.kagi.pw',
-  identityPublicId: '3fa2c1e0-0000-4000-8000-000000000000',
+  bindingId: '3fa2c1e0-0000-4000-8000-000000000000',
   token: 'the.id.token',
   wantDotenv: false,
   timeoutMs: 5000,
@@ -45,7 +45,7 @@ describe('request shape', () => {
     assert.equal(calls[0].options.method, 'POST');
     assert.deepEqual(JSON.parse(calls[0].options.body), {
       provider: 'GITHUB_ACTIONS',
-      identity: '3fa2c1e0-0000-4000-8000-000000000000',
+      bindingId: '3fa2c1e0-0000-4000-8000-000000000000',
       token: 'the.id.token',
     });
   });
@@ -164,12 +164,12 @@ describe('HTTP failures', () => {
     });
   });
 
-  test('400 points at identity-public-id', async () => {
+  test('400 points at binding-id', async () => {
     harness = createHarness();
     stubFetch({ kagi: jsonResponse(400, { success: false, error: { code: 'KGI_VAL_001' } }) });
 
     await assert.rejects(fetchSecrets(args()), (error) => {
-      assert.match(error.message, /identity-public-id/);
+      assert.match(error.message, /binding-id/);
       return true;
     });
   });

@@ -16,7 +16,7 @@ import { writeFileSync } from 'node:fs';
 
 const EXPECTED_AUDIENCE = process.env.E2E_EXPECTED_AUDIENCE ?? 'api.kagi.pw';
 const SECRET_VALUE = 'e2e-secret-value';
-const DENIED_IDENTITY = '00000000-0000-4000-8000-000000000000';
+const DENIED_BINDING_ID = '00000000-0000-4000-8000-000000000000';
 
 const server = createServer((request, response) => {
   const url = new URL(request.url, 'http://localhost');
@@ -39,7 +39,7 @@ const server = createServer((request, response) => {
     request.on('end', () => {
       const body = JSON.parse(raw);
       // Reserved routing id the smoke test uses to exercise the opaque-denial path.
-      if (body.identity === DENIED_IDENTITY) {
+      if (body.bindingId === DENIED_BINDING_ID) {
         return json(response, 401, { success: false, error: { code: 'KGI_AUT_CI_EXCHANGE_DENIED' } });
       }
       if (body.provider !== 'GITHUB_ACTIONS' || body.token !== 'header.payload.signature') {

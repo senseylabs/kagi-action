@@ -7,11 +7,11 @@ branding:
   color: 'purple'
 
 inputs:
-  identity-public-id:
+  binding-id:
     description: >-
-      The CI binding's routing id (identityPublicId), copied from the Kagi portal. Unguessable but
-      NOT a credential: it selects which binding is evaluated, and every grant is derived from the
-      verified claims in the id-token.
+      The CI binding's routing id (bindingId), copied from the Kagi portal. It is a reference, not
+      a credential: it selects which binding is evaluated and grants nothing by itself, and every
+      grant is derived from the verified claims in the id-token.
     required: true
   api-url:
     description: >-

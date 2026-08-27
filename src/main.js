@@ -49,11 +49,11 @@ const RETRY_BACKOFF_MS = [1000, 3000];
 const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 export async function run() {
-  const identityPublicId = getInput('identity-public-id', { required: true });
-  if (!UUID_PATTERN.test(identityPublicId)) {
+  const bindingId = getInput('binding-id', { required: true });
+  if (!UUID_PATTERN.test(bindingId)) {
     throw new ActionError(
-      `identity-public-id must be the binding's routing UUID from the Kagi portal, got ` +
-        `'${identityPublicId}'.`
+      `binding-id must be the binding's routing UUID from the Kagi portal, got ` +
+        `'${bindingId}'.`
     );
   }
 
@@ -82,11 +82,11 @@ export async function run() {
 
   const wantDotenv = Boolean(envFilePath);
 
-  info(`Fetching Kagi secrets for binding ${identityPublicId} (audience ${audience}).`);
+  info(`Fetching Kagi secrets for binding ${bindingId} (audience ${audience}).`);
 
   const result = await exchangeWithRetry({
     apiUrl,
-    identityPublicId,
+    bindingId,
     audience,
     wantDotenv,
     timeoutMs,
@@ -119,7 +119,7 @@ export async function run() {
   setOutput('env-file', writtenPath);
 }
 
-async function exchangeWithRetry({ apiUrl, identityPublicId, audience, wantDotenv, timeoutMs }) {
+async function exchangeWithRetry({ apiUrl, bindingId, audience, wantDotenv, timeoutMs }) {
   let lastError;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
@@ -129,7 +129,7 @@ async function exchangeWithRetry({ apiUrl, identityPublicId, audience, wantDoten
       // The id-token is the entire credential on this path; mask it before it can reach a log.
       setSecret(token);
 
-      return await fetchSecrets({ apiUrl, identityPublicId, token, wantDotenv, timeoutMs });
+      return await fetchSecrets({ apiUrl, bindingId, token, wantDotenv, timeoutMs });
     } catch (error) {
       lastError = error;
       if (!error?.transient || attempt === MAX_ATTEMPTS) {

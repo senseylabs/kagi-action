@@ -55,7 +55,7 @@ jobs:
         id: kagi
         uses: ./
         with:
-          identity-public-id: 3fa2c1e0-0000-4000-8000-000000000000
+          binding-id: 3fa2c1e0-0000-4000-8000-000000000000
           api-url: ${{ env.E2E_API_URL }}
           env-file-path: build/.env
         env:
@@ -79,7 +79,7 @@ jobs:
         continue-on-error: true
         uses: ./
         with:
-          identity-public-id: 00000000-0000-4000-8000-000000000000
+          binding-id: 00000000-0000-4000-8000-000000000000
           api-url: ${{ env.E2E_API_URL }}
         env:
           ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.E2E_TOKEN_URL }}
@@ -108,6 +108,6 @@ jobs:
           assert spec["runs"]["using"].startswith("node"), spec["runs"]["using"]
           main = pathlib.Path(spec["runs"]["main"])
           assert main.is_file(), f"{main} does not exist"
-          assert "identity-public-id" in spec["inputs"]
+          assert "binding-id" in spec["inputs"]
           print("action.yml OK:", spec["runs"]["using"], spec["runs"]["main"])
           PY

@@ -19,7 +19,7 @@ before(async () => {
 let harness;
 afterEach(() => harness?.restore());
 
-const IDENTITY = '3fa2c1e0-0000-4000-8000-000000000000';
+const BINDING_ID = '3fa2c1e0-0000-4000-8000-000000000000';
 
 const body = (overrides = {}) => ({
   success: true,
@@ -42,7 +42,7 @@ const body = (overrides = {}) => ({
 
 describe('happy path', () => {
   test('mints a token at the default audience, exchanges it, masks, then exports', async () => {
-    harness = createHarness({ 'identity-public-id': IDENTITY });
+    harness = createHarness({ 'binding-id': BINDING_ID });
     withOidcEnv();
     const calls = stubFetch({
       oidc: jsonResponse(200, { value: 'id.token.value' }),
@@ -69,7 +69,7 @@ describe('happy path', () => {
   });
 
   test('a custom audience is honoured', async () => {
-    harness = createHarness({ 'identity-public-id': IDENTITY, audience: 'kagi.example' });
+    harness = createHarness({ 'binding-id': BINDING_ID, audience: 'kagi.example' });
     withOidcEnv();
     const calls = stubFetch({
       oidc: jsonResponse(200, { value: 'jwt' }),
@@ -83,7 +83,7 @@ describe('happy path', () => {
 
   test('env-file-path asks for DOTENV and writes the server-rendered document', async () => {
     harness = createHarness({
-      'identity-public-id': IDENTITY,
+      'binding-id': BINDING_ID,
       'export-env': 'false',
     });
     setInput('env-file-path', harness.path('out/.env'));
@@ -102,14 +102,14 @@ describe('happy path', () => {
 });
 
 describe('input validation', () => {
-  test('a missing identity-public-id fails', async () => {
+  test('a missing binding-id fails', async () => {
     harness = createHarness();
     withOidcEnv();
-    await assert.rejects(run(), /identity-public-id/);
+    await assert.rejects(run(), /binding-id/);
   });
 
-  test('a non-UUID identity-public-id fails before any network call', async () => {
-    harness = createHarness({ 'identity-public-id': 'my-binding' });
+  test('a non-UUID binding-id fails before any network call', async () => {
+    harness = createHarness({ 'binding-id': 'my-binding' });
     withOidcEnv();
     const calls = stubFetch({ oidc: jsonResponse(200, { value: 'jwt' }), kagi: jsonResponse(200, body()) });
 
@@ -118,13 +118,13 @@ describe('input validation', () => {
   });
 
   test('export-env false with no env-file-path fails instead of quietly doing nothing', async () => {
-    harness = createHarness({ 'identity-public-id': IDENTITY, 'export-env': 'false' });
+    harness = createHarness({ 'binding-id': BINDING_ID, 'export-env': 'false' });
     withOidcEnv();
     await assert.rejects(run(), /Nothing to do/);
   });
 
   test('mask: false warns that it is ignored and still masks', async () => {
-    harness = createHarness({ 'identity-public-id': IDENTITY, mask: 'false' });
+    harness = createHarness({ 'binding-id': BINDING_ID, mask: 'false' });
     withOidcEnv();
     stubFetch({ oidc: jsonResponse(200, { value: 'jwt' }), kagi: jsonResponse(200, body()) });
 
@@ -137,7 +137,7 @@ describe('input validation', () => {
 
 describe('failure paths never continue silently', () => {
   test('a 401 rejects and writes nothing to GITHUB_ENV', async () => {
-    harness = createHarness({ 'identity-public-id': IDENTITY });
+    harness = createHarness({ 'binding-id': BINDING_ID });
     withOidcEnv();
     stubFetch({
       oidc: jsonResponse(200, { value: 'jwt' }),
@@ -149,7 +149,7 @@ describe('failure paths never continue silently', () => {
   });
 
   test('a missing id-token permission rejects before the exchange', async () => {
-    harness = createHarness({ 'identity-public-id': IDENTITY });
+    harness = createHarness({ 'binding-id': BINDING_ID });
     delete process.env.ACTIONS_ID_TOKEN_REQUEST_URL;
     delete process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;
     const calls = stubFetch({ oidc: jsonResponse(200, {}), kagi: jsonResponse(200, body()) });
@@ -159,7 +159,7 @@ describe('failure paths never continue silently', () => {
   });
 
   test('an unexportable key fails the step rather than corrupting GITHUB_ENV', async () => {
-    harness = createHarness({ 'identity-public-id': IDENTITY });
+    harness = createHarness({ 'binding-id': BINDING_ID });
     withOidcEnv();
     stubFetch({
       oidc: jsonResponse(200, { value: 'jwt' }),
@@ -176,7 +176,7 @@ describe('failure paths never continue silently', () => {
 describe('retry', () => {
   test('a transient failure is retried with a FRESHLY minted token, never the spent one', async () => {
     harness = createHarness({
-      'identity-public-id': IDENTITY,
+      'binding-id': BINDING_ID,
       'request-timeout-seconds': '5',
     });
     withOidcEnv();
@@ -204,7 +204,7 @@ describe('retry', () => {
   });
 
   test('a non-transient failure is not retried', async () => {
-    harness = createHarness({ 'identity-public-id': IDENTITY });
+    harness = createHarness({ 'binding-id': BINDING_ID });
     withOidcEnv();
     let attempted = 0;
     globalThis.fetch = async (url) => {

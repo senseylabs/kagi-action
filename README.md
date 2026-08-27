@@ -22,12 +22,12 @@ jobs:
     steps:
       - uses: senseylabs/kagi-action@v1
         with:
-          identity-public-id: 3fa2c1e0-0000-4000-8000-000000000000
+          binding-id: 3fa2c1e0-0000-4000-8000-000000000000
 
       - run: ./deploy.sh   # $DATABASE_URL, $STRIPE_KEY, ... are now in the environment
 ```
 
-`identity-public-id` is the binding's routing id, shown in the Kagi portal under
+`binding-id` is the binding's routing id, shown in the Kagi portal under
 **Integrations → CI Federation**. It is unguessable but it is **not** a credential: it only says
 which binding to evaluate. Every grant is derived from the claims in the id-token, so a leaked
 routing id on its own opens nothing.
@@ -50,7 +50,7 @@ fails immediately with that instruction. The action cannot grant the permission 
 
 | Input | Required | Default | Description |
 |---|---|---|---|
-| `identity-public-id` | yes | — | The binding's routing id (a UUID) from the Kagi portal. |
+| `binding-id` | yes | — | The binding's routing id (a UUID) from the Kagi portal. |
 | `api-url` | no | `https://api.kagi.pw` | Kagi API root. Change only for a self-hosted (ENTERPRISE) deployment. |
 | `audience` | no | `api.kagi.pw` | OIDC audience to mint the token at. Must match the binding's `expectedAudience` exactly when it pins one. |
 | `export-env` | no | `true` | Write every secret into `$GITHUB_ENV` for later steps in the same job. |
@@ -78,7 +78,7 @@ read and are easy to echo by accident; `$GITHUB_ENV` (or the 0600 `.env`) is the
 ```yaml
       - uses: senseylabs/kagi-action@v1
         with:
-          identity-public-id: 3fa2c1e0-0000-4000-8000-000000000000
+          binding-id: 3fa2c1e0-0000-4000-8000-000000000000
           export-env: false
           env-file-path: apps/api/.env
 ```

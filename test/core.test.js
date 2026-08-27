@@ -38,13 +38,13 @@ describe('workflow command escaping', () => {
 
 describe('inputs', () => {
   test('reads and trims INPUT_* variables', () => {
-    harness = createHarness({ 'identity-public-id': '  abc  ' });
-    assert.equal(getInput('identity-public-id'), 'abc');
+    harness = createHarness({ 'binding-id': '  abc  ' });
+    assert.equal(getInput('binding-id'), 'abc');
   });
 
   test('a required input that is absent fails loudly', () => {
     harness = createHarness();
-    assert.throws(() => getInput('identity-public-id', { required: true }), ActionError);
+    assert.throws(() => getInput('binding-id', { required: true }), ActionError);
   });
 
   test('an absent optional input falls back', () => {

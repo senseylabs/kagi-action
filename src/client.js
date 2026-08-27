@@ -8,7 +8,7 @@
  * main.js: a retry has to mint a fresh token, never resend this one.
  *
  * Shapes here are taken from the backend records, not from prose:
- *   request  KagiCiSecretFetchRequest  { provider, identity, token, format }
+ *   request  KagiCiSecretFetchRequest  { provider, bindingId, token, format }
  *   response CustomResponse<KagiCiSecretFetchResponse>
  *            { success, message, data: { scopes: [...], dotenv }, pagination, error }
  *   scope    KagiCiSecretScopeResponse { appId, appPath, environmentSlug, secrets }
@@ -32,7 +32,7 @@ const DENIED_HINT =
   'Kagi denied the fetch. The endpoint is unauthenticated, so it answers every pre-match failure ' +
   'with one opaque 401 rather than telling an anonymous caller which part was wrong. Check, in ' +
   'this order:\n' +
-  '  - identity-public-id matches the binding shown in the Kagi portal\n' +
+  '  - binding-id matches the binding shown in the Kagi portal\n' +
   "  - the binding's expected audience matches this step's `audience` input\n" +
   '  - the binding is enabled, its trust owner is active, and its verification status is VERIFIED\n' +
   "  - this workflow's repository, ref, environment and workflow file satisfy the binding's " +
@@ -45,12 +45,12 @@ const DENIED_HINT =
  * Returns { scopes, dotenv } on success. Throws ActionError on every failure; errors that are worth
  * another attempt with a freshly minted token carry `transient = true`.
  */
-export async function fetchSecrets({ apiUrl, identityPublicId, token, wantDotenv, timeoutMs }) {
+export async function fetchSecrets({ apiUrl, bindingId, token, wantDotenv, timeoutMs }) {
   const url = `${trimTrailingSlash(apiUrl)}${FETCH_PATH}`;
 
   const body = {
     provider: PROVIDER,
-    identity: identityPublicId,
+    bindingId,
     token,
   };
   // format is nullable on the request record and defaults to JSON; only send it when a rendered
@@ -184,7 +184,7 @@ async function buildHttpError(response, url) {
     case 400:
       message =
         `Kagi rejected the fetch request as invalid (HTTP 400). ${detail ?? ''}\n` +
-        'identity-public-id must be the binding UUID from the Kagi portal.';
+        'binding-id must be the binding UUID from the Kagi portal.';
       break;
     case 401:
       message = `Kagi denied the fetch (HTTP 401). ${detail ? detail + '\n' : ''}${DENIED_HINT}`;
